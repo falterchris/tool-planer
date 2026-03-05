@@ -1,3 +1,4 @@
+export const revalidate = 0; // Das zwingt die Seite, jedes Mal neu zu laden
 import { createClient } from '@supabase/supabase-js'
 
 export default async function Home() {
