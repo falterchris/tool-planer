@@ -8,13 +8,14 @@ export default async function Home({ searchParams }: { searchParams: any }) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // 1. Alle Tools für die Auswahl laden
-  const { data: tools } = await supabase.from('tools').select('*')
+  // 1. Alle Tools für das Dropdown laden
+  const { data: tools } = await supabase.from('tools').select('*').order('name');
   
-  // 2. Prüfen, welches Tool gerade ausgewählt ist
+  // 2. Welches Tool ist ausgewählt?
   const selectedToolId = searchParams?.toolId;
+  const selectedTool = tools?.find(t => t.id === selectedToolId);
 
-  // 3. Buchungen nur für das ausgewählte Tool laden
+  // 3. Buchungen für den Kalender laden
   let toolBookings: any[] = []
   if (selectedToolId) {
     const { data } = await supabase
@@ -24,7 +25,7 @@ export default async function Home({ searchParams }: { searchParams: any }) {
     toolBookings = data || []
   }
 
-  // Hilfsfunktion für den Kalender: Check ob Tag belegt ist
+  // Hilfsfunktion: Check ob Tag belegt ist
   const isBooked = (dateStr: string) => {
     return toolBookings.some(b => {
       const start = new Date(b.start_date).getTime();
@@ -35,124 +36,133 @@ export default async function Home({ searchParams }: { searchParams: any }) {
   }
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto', color: '#333' }}>
+    <div style={{ padding: '40px 20px', fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto', color: '#333' }}>
       <header style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <h1>🛠 Tool-Verleih Planer</h1>
-        <p>Wähle ein Gerät aus, um die Verfügbarkeit zu prüfen.</p>
+        <h1 style={{ fontSize: '2.5rem', marginBottom: '10px' }}>🛠 Equipment Planer</h1>
+        <p style={{ color: '#666' }}>Wähle ein Tool aus der Liste, um den Kalender anzuzeigen.</p>
       </header>
 
-      {/* TOOL AUSWAHL NAVIGATION */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', overflowX: 'auto', padding: '10px 0', borderBottom: '1px solid #eee' }}>
-        {tools?.map(tool => (
-          <a 
-            key={tool.id} 
-            href={`?toolId=${tool.id}`}
-            style={{
-              padding: '12px 20px',
-              backgroundColor: selectedToolId === tool.id ? '#0070f3' : '#f0f0f0',
-              color: selectedToolId === tool.id ? 'white' : '#333',
-              borderRadius: '30px',
-              textDecoration: 'none',
-              fontWeight: 'bold',
-              transition: 'all 0.2s',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {tool.name}
-          </a>
-        ))}
+      {/* DROPDOWN AUSWAHL */}
+      <div style={{ marginBottom: '40px', textAlign: 'center' }}>
+        <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>Tool auswählen:</label>
+        <select 
+          onChange={(e) => {
+            if(e.target.value) window.location.href = `?toolId=${e.target.value}`;
+          }}
+          value={selectedToolId || ""}
+          style={{ 
+            padding: '12px 20px', 
+            fontSize: '1.1rem', 
+            borderRadius: '8px', 
+            border: '2px solid #0070f3',
+            width: '100%',
+            maxWidth: '400px',
+            cursor: 'pointer',
+            backgroundColor: '#fff'
+          }}
+        >
+          <option value="">-- Bitte wählen --</option>
+          {tools?.map(tool => (
+            <option key={tool.id} value={tool.id}>{tool.name}</option>
+          ))}
+        </select>
       </div>
 
-      {/* KALENDER ANSICHT */}
+      {/* KALENDER BEREICH - Erscheint nur, wenn ein Tool gewählt wurde */}
       {selectedToolId ? (
-        <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ color: '#0070f3' }}>
-            Kalender: {tools?.find(t => t.id === selectedToolId)?.name}
-          </h2>
+        <div style={{ 
+          background: '#fff', 
+          padding: '30px', 
+          borderRadius: '16px', 
+          boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+          border: '1px solid #eaeaea'
+        }}>
+          <h2 style={{ color: '#0070f3', marginTop: 0 }}>📅 Kalender für: {selectedTool?.name}</h2>
+          <p style={{ fontSize: '0.9rem', color: '#666' }}>Status für März 2026:</p>
           
-          <div style={{ marginBottom: '20px', display: 'flex', gap: '20px' }}>
-            <span><span style={{ display: 'inline-block', width: '15px', height: '15px', background: '#e6fffa', border: '1px solid #eee' }}></span> Frei</span>
-            <span><span style={{ display: 'inline-block', width: '15px', height: '15px', background: '#ffcccc', border: '1px solid #eee' }}></span> Belegt</span>
-          </div>
-
-          {/* Beispiel-Matrix für einen Monat (Mai 2026 als Beispiel) */}
+          {/* Kalender Grid */}
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(7, 1fr)', 
-            gap: '8px',
+            gap: '10px',
             marginTop: '20px'
           }}>
-            {/* Wochentage Header */}
             {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(d => (
-              <div key={d} style={{ textAlign: 'center', fontWeight: 'bold', padding: '5px' }}>{d}</div>
+              <div key={d} style={{ textAlign: 'center', fontWeight: 'bold', color: '#999', fontSize: '0.8rem' }}>{d}</div>
             ))}
             
-            {/* Tage-Grid */}
             {Array.from({ length: 31 }, (_, i) => {
               const day = i + 1;
-              const dateStr = `2026-05-${day.toString().padStart(2, '0')}`;
+              const dateStr = `2026-03-${day.toString().padStart(2, '0')}`;
               const booked = isBooked(dateStr);
               
               return (
                 <div key={i} style={{
-                  height: '70px',
-                  border: '1px solid #eee',
-                  borderRadius: '6px',
-                  backgroundColor: booked ? '#ffcccc' : '#e6fffa',
+                  aspectRatio: '1/1',
+                  border: '1px solid #f0f0f0',
+                  borderRadius: '8px',
+                  backgroundColor: booked ? '#ffe3e3' : '#f0fff4',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  position: 'relative',
-                  fontSize: '1rem'
+                  fontSize: '1rem',
+                  color: booked ? '#e53e3e' : '#38a169',
+                  fontWeight: booked ? 'bold' : 'normal'
                 }}>
-                  <span style={{ fontWeight: booked ? 'bold' : 'normal' }}>{day}</span>
-                  {booked && <small style={{ position: 'absolute', bottom: '5px', fontSize: '0.6rem', color: '#cc0000' }}>belegt</small>}
+                  {day}
+                  {booked && <span style={{ fontSize: '0.5rem', textTransform: 'uppercase' }}>belegt</span>}
                 </div>
               );
             })}
           </div>
 
           {/* BUCHUNGSFORMULAR */}
-          <div style={{ marginTop: '40px', padding: '25px', background: '#f8f9fa', borderRadius: '10px' }}>
-            <h3>Neue Reservierung eintragen</h3>
-            <form action={createBooking} style={{ display: 'grid', gap: '15px', maxWidth: '500px' }}>
+          <div style={{ marginTop: '40px', paddingTop: '30px', borderTop: '1px solid #eee' }}>
+            <h3 style={{ marginBottom: '20px' }}>Zeitraum reservieren</h3>
+            <form action={createBooking} style={{ display: 'grid', gap: '15px' }}>
               <input type="hidden" name="toolId" value={selectedToolId} />
               
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px' }}>Dein Name</label>
-                <input name="userName" required style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
-              </div>
-
-              <div style={{ display: 'flex', gap: '15px' }}>
+              <input name="userName" placeholder="Dein Name" required style={{ padding: '12px', borderRadius: '6px', border: '1px solid #ddd' }} />
+              
+              <div style={{ display: 'flex', gap: '10px' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '5px' }}>Startdatum</label>
-                  <input type="date" name="startDate" required style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
+                  <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '5px' }}>Start</label>
+                  <input type="date" name="startDate" required style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd' }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '5px' }}>Enddatum</label>
-                  <input type="date" name="endDate" required style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
+                  <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '5px' }}>Ende</label>
+                  <input type="date" name="endDate" required style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ddd' }} />
                 </div>
               </div>
 
               <button type="submit" style={{ 
-                padding: '12px', 
+                padding: '15px', 
                 backgroundColor: '#0070f3', 
                 color: 'white', 
                 border: 'none', 
-                borderRadius: '5px', 
+                borderRadius: '8px', 
                 cursor: 'pointer',
                 fontWeight: 'bold',
-                fontSize: '1rem'
+                fontSize: '1rem',
+                boxShadow: '0 4px 10px rgba(0, 112, 243, 0.3)'
               }}>
-                Reservierung speichern
+                Jetzt eintragen
               </button>
             </form>
           </div>
         </div>
       ) : (
-        <div style={{ padding: '80px', textAlign: 'center', backgroundColor: '#f9f9f9', borderRadius: '15px', border: '2px dashed #ddd' }}>
+        <div style={{ 
+          padding: '60px', 
+          textAlign: 'center', 
+          backgroundColor: '#fff', 
+          borderRadius: '16px', 
+          border: '2px dashed #ccc' 
+        }}>
+          <div style={{ fontSize: '3rem', marginBottom: '20px' }}>☝️</div>
           <h2 style={{ color: '#999' }}>Kein Tool ausgewählt</h2>
-          <p>Klicke oben auf ein Gerät, um den Kalender und die Buchungen zu sehen.</p>
+          <p>Bitte wähle oben ein Gerät aus der Liste aus.</p>
         </div>
       )}
     </div>
