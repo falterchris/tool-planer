@@ -6,7 +6,10 @@ import { createBooking } from './actions';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    db: { schema: 'chris' }
+  }
 );
 
 export default function Home() {
